@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>科技感倒计时器</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Nova+Mono&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #000;
+            color: #0f0;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        #clock {
+            font-size: 15vw;
+            text-shadow: 0 0 10px #0f0;
+            width: 80%;
+            text-align: center;
+            font-family: 'Nova Mono', monospace; /* 使用等宽的科幻字体 */
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            width: 70%;
+            margin-top: 20px;
+        }
+        button {
+            background: linear-gradient(145deg, #002200, #001a00);
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 8px 0;
+            cursor: pointer;
+            font-size: 0.7vw;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 255, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            flex: 0 1 calc(8.4% - 20px);
+            margin: 0 10px;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        button::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 255, 0, 0.1) 0%, rgba(0, 255, 0, 0) 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        button:hover::before {
+            opacity: 1;
+        }
+        button:hover {
+            background: linear-gradient(145deg, #003300, #002200);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 255, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                        0 0 15px rgba(0, 255, 0, 0.5);
+        }
+        button:active {
+            background: linear-gradient(145deg, #001a00, #002200);
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 255, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        #customTimer {
+            display: none;
+            margin-top: 20px;
+        }
+        input {
+            background-color: transparent;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 5px;
+            width: 50px;
+            font-size: 16px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        @keyframes blink {
+            0% { color: #0f0; }
+            50% { color: #f00; }
+            100% { color: #0f0; }
+        }
+        .blinking {
+            animation: blink 1s infinite;
+        }
+        #signature {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            opacity: 0.7;
+            font-family: 'Orbitron', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="clock">00:00:00</div>
+        <div class="buttons">
+            <button onclick="setTimer(2)">2Min</button>
+            <button onclick="setTimer(5)">5Min</button>
+            <button onclick="setTimer(8)">8Min</button>
+            <button onclick="setTimer(10)">10Min</button>
+            <button onclick="toggleCustomTimer()">custom</button>
+            <button id="pauseButton" onclick="togglePause()">PAUSE</button>
+            <button onclick="resetClock()">CLOCK</button>
+        </div>
+        <div id="customTimer">
+            <input type="number" id="hours" min="0" max="23" value="0">
+            <label for="hours">:</label>
+            <input type="number" id="minutes" min="0" max="59" value="0">
+            <label for="minutes">:</label>
+            <input type="number" id="seconds" min="0" max="59" value="0">
+            <label for="seconds"></label>
+            <button onclick="startCustomTimer()"> &#x25B6;</button>
+        </div>
+    </div>
+    <div id="signature">Designed by Martinlu</div>
+
+    <script>
+        let timer;
+        let totalSeconds = 0;
+        let isRunning = false;
+        let isPaused = false;
+        let isCountdownMode = false;
+
+        // 实时更新时钟显示
+        function updateClockDisplay() {
+            if (!isCountdownMode) {
+                const now = new Date();
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const seconds = now.getSeconds().toString().padStart(2, '0');
+                document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+            }
+        }
+
+        // 更新倒计时显示
+        function updateTimerDisplay() {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            document.getElementById('clock').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // 启动倒计时器
+        function startTimer() {
+            if (isRunning && !isPaused) return;
+            isRunning = true;
+            isCountdownMode = true;
+            isPaused = false;
+            updatePauseButton();
+            timer = setInterval(() => {
+                if (totalSeconds > 0) {
+                    totalSeconds--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timer);
+                    isRunning = false;
+                    document.getElementById('clock').classList.add('blinking');
+                    document.addEventListener('click', stopBlinking);
+                }
+            }, 1000);
+        }
+
+        // 停止闪烁
+        function stopBlinking() {
+            document.getElementById('clock').classList.remove('blinking');
+            document.removeEventListener('click', stopBlinking);
+            resetClock();
+        }
+
+        // 暂停/继续倒计时
+        function togglePause() {
+            if (isRunning) {
+                if (isPaused) {
+                    startTimer();
+                } else {
+                    clearInterval(timer);
+                    isPaused = true;
+                }
+                updatePauseButton();
+            }
+        }
+
+        // 更新暂停按钮显示
+        function updatePauseButton() {
+            const pauseButton = document.getElementById('pauseButton');
+            pauseButton.textContent = isPaused ? ">" : "II";
+        }
+
+        // 设置定时器
+        function setTimer(minutes) {
+            totalSeconds = minutes * 60;
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        // 切换自定义定时器显示
+        function toggleCustomTimer() {
+            const customTimer = document.getElementById('customTimer');
+            customTimer.style.display = customTimer.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 启动自定义倒计时
+        function startCustomTimer() {
+            const hours = parseInt(document.getElementById('hours').value) || 0;
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            totalSeconds = hours * 3600 + minutes * 60 + seconds;
+            updateTimerDisplay();
+            startTimer();
+            toggleCustomTimer();
+        }
+
+        // 重置时钟显示
+        function resetClock() {
+            clearInterval(timer);
+            isRunning = false;
+            isCountdownMode = false;
+            isPaused = false;
+            updatePauseButton();
+            updateClockDisplay(); // 立即更新一次时钟显示
+            setInterval(updateClockDisplay, 1000); // 每秒更新时钟
+        }
+
+        // 初始化时钟
+        resetClock();
+    </script>
+
+</body>
+</html>
